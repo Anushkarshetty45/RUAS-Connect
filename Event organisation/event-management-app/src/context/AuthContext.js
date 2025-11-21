@@ -56,7 +56,11 @@ export const AuthProvider = ({ children }) => {
     try {
       const { data, error } = await supabase.auth.signUp({
         email,
-        password
+        password,
+        options: {
+          // Don't automatically sign in after email verification
+          emailRedirectTo: `${window.location.origin}/login`
+        }
       })
 
       if (error) throw error
@@ -70,6 +74,9 @@ export const AuthProvider = ({ children }) => {
 
         if (profileError) throw profileError
       }
+
+      // Sign out immediately after sign up to prevent auto-login
+      await supabase.auth.signOut()
 
       return { data, error: null }
     } catch (error) {
