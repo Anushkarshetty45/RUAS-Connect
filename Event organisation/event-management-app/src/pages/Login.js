@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import './Login.css'
 
@@ -13,8 +13,9 @@ function Login() {
   const [yearOfStudy, setYearOfStudy] = useState(1)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [showResendEmail, setShowResendEmail] = useState(false)
 
-  const { signIn, signUp, signInWithGoogle } = useAuth()
+  const { signIn, signUp } = useAuth()
   const navigate = useNavigate()
 
   const handleSubmit = async (e) => {
@@ -25,9 +26,25 @@ function Login() {
     try {
       if (isLogin) {
         const { error } = await signIn(email, password)
-        if (error) throw error
+        if (error) {
+          // Provide user-friendly error messages
+          if (error.message.includes('Invalid login credentials')) {
+            setShowResendEmail(false)
+            throw new Error('Invalid email or password. Please check your credentials and try again.')
+          } else if (error.message.includes('Email not confirmed')) {
+            setShowResendEmail(true)
+            throw new Error('⚠️ Please verify your email before signing in. Check your inbox for the verification link.')
+          } else {
+            setShowResendEmail(false)
+            throw error
+          }
+        }
+        
+        // Successfully signed in - navigate to dashboard
+        setShowResendEmail(false)
         navigate('/dashboard')
       } else {
+        // Sign Up Flow
         const { error } = await signUp(email, password, {
           full_name: fullName,
           registration_number: registrationNumber,
@@ -35,20 +52,28 @@ function Login() {
           year_of_study: yearOfStudy
         })
         if (error) throw error
-        setError('Success! Please check your email to verify your account.')
+        
+        // Success - Show message and switch to login
+        setError('✅ Account created successfully! Please check your email to verify your account, then sign in below.')
+        
+        // Clear form fields
+        setEmail('')
+        setPassword('')
+        setFullName('')
+        setRegistrationNumber('')
+        setDepartment('')
+        setYearOfStudy(1)
+        
+        // Switch to login view after 2 seconds
+        setTimeout(() => {
+          setIsLogin(true)
+          setError('')
+        }, 3000)
       }
     } catch (error) {
       setError(error.message)
     } finally {
       setLoading(false)
-    }
-  }
-
-  const handleGoogleSignIn = async () => {
-    setError('')
-    const { error } = await signInWithGoogle()
-    if (error) {
-      setError(error.message)
     }
   }
 
@@ -63,6 +88,16 @@ function Login() {
         {error && (
           <div className={`alert ${error.includes('Success') ? 'alert-success' : 'alert-error'}`}>
             {error}
+            {showResendEmail && (
+              <div style={{ marginTop: '10px', fontSize: '13px' }}>
+                <strong>Didn't receive the email?</strong>
+                <ul style={{ marginTop: '5px', paddingLeft: '20px' }}>
+                  <li>Check your spam/junk folder</li>
+                  <li>Make sure you signed up with the correct email</li>
+                  <li>Try signing up again if needed</li>
+                </ul>
+              </div>
+            )}
           </div>
         )}
 
